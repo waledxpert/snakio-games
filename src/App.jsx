@@ -1,16 +1,22 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Hub from "./components/Hub";
 import WalletGate from "./components/WalletGate";
 import SnakeSelect from "./components/SnakeSelect";
 import SnakeGame from "./components/SnakeGame";
 import { Brand, WalletPill } from "./components/ui";
-import { loadWalletSnakes } from "./snakiox/mockWallet";
+import {
+  getConnectedAccount,
+  loadWalletSnakes,
+  watchWallet
+} from "./snakiox/chain";
 
 // Screens: hub -> wallet -> select -> game
 export default function App() {
-  const [wallet, setWallet] = useState(null);
+  const [address, setAddress] = useState(null);
   const [screen, setScreen] = useState("hub"); // hub | wallet | select | game
   const [snakes, setSnakes] = useState([]);
+  const [loadingSnakes, setLoadingSnakes] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   // Remember choices so returning from a run preserves your setup.
   const [pickedSnakeId, setPickedSnakeId] = useState(null);
@@ -18,15 +24,37 @@ export default function App() {
   const [activeSnake, setActiveSnake] = useState(null);
   const [activeBg, setActiveBg] = useState(null);
 
-  const connect = useCallback((w) => {
-    setWallet(w);
-    setSnakes(loadWalletSnakes(w.id));
-    setScreen("select");
+  // Guard against a stale async load (e.g. fast wallet switch) clobbering state.
+  const loadSeq = useRef(0);
+
+  const loadSnakes = useCallback(async (addr) => {
+    const seq = ++loadSeq.current;
+    setLoadingSnakes(true);
+    setLoadError("");
+    try {
+      const owned = await loadWalletSnakes(addr);
+      if (seq !== loadSeq.current) return; // a newer load superseded us
+      setSnakes(owned);
+    } catch (err) {
+      if (seq !== loadSeq.current) return;
+      setSnakes([]);
+      setLoadError(err?.message || "Could not load your Snakiox.");
+    } finally {
+      if (seq === loadSeq.current) setLoadingSnakes(false);
+    }
   }, []);
 
+  const connect = useCallback((addr) => {
+    setAddress(addr);
+    setScreen("select");
+    loadSnakes(addr);
+  }, [loadSnakes]);
+
   const disconnect = useCallback(() => {
-    setWallet(null);
+    loadSeq.current++; // invalidate any in-flight load
+    setAddress(null);
     setSnakes([]);
+    setLoadError("");
     setActiveSnake(null);
     setActiveBg(null);
     setPickedSnakeId(null);
@@ -36,13 +64,44 @@ export default function App() {
 
   const goHub = useCallback(() => setScreen("hub"), []);
 
+  // Silent reconnect if the wallet already authorized this site, and react to
+  // the user switching accounts / disconnecting from the wallet itself.
+  useEffect(() => {
+    getConnectedAccount().then((addr) => {
+      if (addr) {
+        setAddress(addr);
+        loadSnakes(addr);
+      }
+    });
+
+    const unwatch = watchWallet({
+      onAccountsChanged: (addr) => {
+        if (!addr) {
+          disconnect();
+          return;
+        }
+        setAddress(addr);
+        setPickedSnakeId(null);
+        setPickedBgId(null);
+        setActiveSnake(null);
+        setActiveBg(null);
+        loadSnakes(addr);
+      },
+      // A network change can change what reads return — simplest correct move is
+      // a fresh reload of the collection.
+      onChainChanged: () => {
+        setAddress((cur) => {
+          if (cur) loadSnakes(cur);
+          return cur;
+        });
+      }
+    });
+    return unwatch;
+  }, [loadSnakes, disconnect]);
+
   const handlePlayGame = useCallback(() => {
-    if (!wallet) {
-      setScreen("wallet");
-    } else {
-      setScreen("select");
-    }
-  }, [wallet]);
+    setScreen(address ? "select" : "wallet");
+  }, [address]);
 
   const handleStartRun = useCallback(({ snake, bg }) => {
     setActiveSnake(snake);
@@ -53,35 +112,38 @@ export default function App() {
   }, []);
 
   const gameReady = activeSnake && activeBg;
-  const headerWalletPill = useMemo(() => wallet, [wallet]);
 
   return (
     <div className="app-shell crt-bg">
       <header className="topbar">
         <Brand onClick={goHub} />
         <div className="flex gap-sm">
-          {wallet && (
+          {address && (
             <button className="pix-btn pix-btn--ghost" onClick={() => setScreen("select")}>
               My Snakiox
             </button>
           )}
           <WalletPill
-            wallet={headerWalletPill}
-            onDisconnect={wallet ? disconnect : () => setScreen("wallet")}
+            address={address}
+            onConnect={() => setScreen("wallet")}
+            onDisconnect={disconnect}
           />
         </div>
       </header>
 
-      {screen === "hub" && <Hub onPlay={handlePlayGame} wallet={wallet} />}
+      {screen === "hub" && <Hub onPlay={handlePlayGame} wallet={address} />}
 
       {screen === "wallet" && (
-        <WalletGate onConnect={connect} onCancel={goHub} />
+        <WalletGate onConnected={connect} onCancel={goHub} />
       )}
 
       {screen === "select" && (
         <SnakeSelect
-          wallet={wallet}
+          address={address}
           snakes={snakes}
+          loading={loadingSnakes}
+          error={loadError}
+          onReload={() => address && loadSnakes(address)}
           initialSnakeId={pickedSnakeId}
           initialBgId={pickedBgId}
           onStart={handleStartRun}

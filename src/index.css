@@ -147,6 +147,56 @@ a:hover { color: var(--ink); }
   background: var(--phosphor);
   box-shadow: 0 0 8px var(--phosphor);
 }
+.wallet-pill { cursor: pointer; }
+.wallet-pill:hover { border-color: var(--phosphor-dim); }
+.wallet-pill-caret { font-size: 0.6rem; opacity: 0.7; margin-left: 0.1rem; }
+
+/* Connected-wallet dropdown */
+.wallet-menu { position: relative; }
+.wallet-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 40;
+  min-width: 190px;
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.15rem;
+}
+.wallet-dropdown .wd-addr {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--ink-faint);
+  padding: 0.3rem 0.5rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0.3rem;
+}
+.wallet-dropdown .wd-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 0;
+  padding: 0.5rem;
+  border-radius: 2px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.wallet-dropdown .wd-item:hover { background: var(--panel-2); color: var(--ink); }
+.wallet-dropdown .wd-item--danger:hover { color: #ff6b6b; }
+
+/* Inline links + connect error */
+.link { color: var(--phosphor); text-decoration: none; border-bottom: 1px dotted var(--phosphor-dim); }
+.link:hover { color: var(--phosphor-bright, var(--phosphor)); }
+.gate-error {
+  color: #ff7a7a;
+  font-size: 0.82rem;
+  margin: 0 0 0.6rem;
+  text-align: center;
+}
 
 .page {
   flex: 1;
@@ -415,6 +465,10 @@ a:hover { color: var(--ink); }
   display: block;
 }
 .nft-art img { width: 100%; height: 100%; display: block; object-fit: contain; }
+/* Animated render-core avatar (slithers in its tile). */
+.snake-avatar { width: 100%; height: 100%; display: block; }
+.snake-avatar svg { width: 100%; height: 100%; display: block; }
+.nft-art .snake-avatar { aspect-ratio: 1; }
 .nft-meta {
   padding: 0.55rem 0.6rem 0.6rem;
   border-top: 1px solid var(--line);
@@ -532,6 +586,13 @@ a:hover { color: var(--ink); }
   image-rendering: crisp-edges;
   border: 1px solid var(--line-bright);
 }
+/* The live render-core serpent, layered over the background canvas. */
+.arena-snake {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.arena-snake svg { width: 100%; height: 100%; display: block; }
 .arena-overlay {
   position: absolute;
   inset: 0;
@@ -631,6 +692,14 @@ a:hover { color: var(--ink); }
   padding: 0.6rem;
 }
 .legend-mini img { width: 44px; height: 44px; object-fit: contain; border: 1px solid var(--line-bright); }
+.legend-mini .legend-avatar {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border: 1px solid var(--line-bright);
+  background: var(--bg-2);
+  border-radius: 3px;
+}
 .legend-mini .lm-name { font-weight: 700; font-size: 0.85rem; }
 .legend-mini .lm-sub { font-family: var(--mono); font-size: 0.7rem; color: var(--ink-faint); }
 

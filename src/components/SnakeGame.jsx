@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { drawSnake } from "../snakiox/snakeRenderer";
+import { CELL, cellCenter, creatureMarkup } from "../snakiox/liveSnake";
 import { rarityClass } from "../lib/helpers";
+import { downloadResultCard } from "../snakiox/shareCard";
+import SnakeAvatar from "./SnakeAvatar";
 
 const GRID = 22;
 const BASE_SPEED = 135;    // ms per step at level 1
 const SPEED_STEP = 9;      // ms shaved per level
 const MIN_SPEED = 60;
-const SCORE_PER_FOOD = 10;
+const SCORE_PER_FOOD = 1;
 const FOOD_PER_LEVEL = 5;
 
 const DIRS = {
@@ -54,9 +56,10 @@ function speedForLevel(level) {
 
 export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
   const canvasRef = useRef(null);
+  const svgRef = useRef(null);
   const rafRef = useRef(0);
   const lastTickRef = useRef(0);
-  const frameRef = useRef(0);
+  const lastSigRef = useRef("");
 
   // Game world + phase live in refs so the rAF loop reads fresh values without
   // re-subscribing, and never touches them during render.
@@ -77,8 +80,29 @@ export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
     level: 1,
     best: initialBest()
   });
+  const [saving, setSaving] = useState(false);
 
   const traits = snake.traits;
+
+  // Export a styled PNG of the finished run (snake + score/length/level).
+  async function saveResultCard() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await downloadResultCard({
+        token: snake,
+        score: hud.score,
+        length: hud.length,
+        level: hud.level,
+        best: hud.best,
+        outcome: phaseRef.current === "won" ? "won" : "dead"
+      });
+    } catch {
+      /* canvas/export failed — leave the run intact */
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // Transition helper — keeps the ref and state in sync.
   function goPhase(next) {
@@ -98,6 +122,10 @@ export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
   }
 
   // ── Draw current frame ─────────────────────────────────────────────────────
+  // Background paints to the canvas every frame (cheap). The serpent itself is
+  // the REAL render-core artwork, drawn as an SVG overlay and rebuilt only when
+  // it actually moves/grows — so the in-game snake is identical to the NFT
+  // (full skin, body taper with no "neck", head, crown, sigil, mark, pattern).
   function draw() {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -110,8 +138,29 @@ export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
     ctx.imageSmoothingEnabled = false;
     bg.paint(ctx, cssSize, cssSize, cellPx);
 
+    drawSnakeSvg();
+  }
+
+  // Rebuild the SVG serpent overlay only when its shape changes.
+  function drawSnakeSvg() {
+    const host = svgRef.current;
+    if (!host) return;
     const { snake: body, food } = worldRef.current;
-    drawSnake(ctx, body, food, cellPx, traits.skin, traits.gaze, traits.form, traits.skinSeries, frameRef.current);
+    const head = body[0];
+    const sig = `${body.length}:${head.x}:${head.y}:${food ? food.x + "," + food.y : "x"}`;
+    if (sig === lastSigRef.current) return;
+    lastSigRef.current = sig;
+
+    const len = body.length;
+    // pos(i): tail (i=0) … head (i=len-1). worldRef.snake[0] is the head.
+    const pos = (i) => cellCenter(body[len - 1 - i].x, body[len - 1 - i].y);
+    const foodPos = food ? cellCenter(food.x, food.y) : null;
+    const vb = GRID * CELL;
+
+    host.innerHTML =
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vb} ${vb}" width="100%" height="100%" preserveAspectRatio="none" shape-rendering="crispEdges">` +
+      creatureMarkup(traits, len, pos, foodPos) +
+      "</svg>";
   }
 
   // ── Advance one tick; returns "alive" | "dead" | "won" ─────────────────────
@@ -163,6 +212,7 @@ export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
       best: initialBest()
     };
     lastTickRef.current = 0;
+    lastSigRef.current = "";
     syncHud();
     goPhase("playing");
   }
@@ -187,7 +237,6 @@ export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
   useEffect(() => {
     const loop = (now) => {
       rafRef.current = requestAnimationFrame(loop);
-      frameRef.current += 1;
       draw();
 
       if (phaseRef.current === "playing") {
@@ -277,8 +326,6 @@ export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const svgUrl = `data:image/svg+xml;utf8,${encodeURIComponent(snake.svg)}`;
-
   return (
     <div className="page">
       <div className="flex-between" style={{ marginBottom: "1.2rem" }}>
@@ -297,6 +344,7 @@ export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
 
           <div className="arena-canvas-wrap">
             <canvas ref={canvasRef} />
+            <div ref={svgRef} className="arena-snake" aria-hidden="true" />
             {phase !== "playing" && (
               <div className="arena-overlay">
                 {phase === "idle" && (
@@ -329,6 +377,9 @@ export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
                     <div className="flex gap-sm" style={{ justifyContent: "center", flexWrap: "wrap" }}>
                       <button className="pix-btn pix-btn--phosphor pix-btn--lg" onClick={beginRun}>
                         ↻ Run Again
+                      </button>
+                      <button className="pix-btn pix-btn--amber pix-btn--lg" onClick={saveResultCard} disabled={saving}>
+                        {saving ? "Saving…" : "⤓ Save Result"}
                       </button>
                       <button className="pix-btn pix-btn--ghost pix-btn--lg" onClick={onChangeSetup}>
                         Change Snake
@@ -381,11 +432,16 @@ export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
                 <button className="pix-btn pix-btn--phosphor" onClick={resume}>Resume</button>
               )}
               <button className="pix-btn pix-btn--ghost" onClick={beginRun}>Restart</button>
+              {(phase === "dead" || phase === "won") && (
+                <button className="pix-btn pix-btn--amber" onClick={saveResultCard} disabled={saving}>
+                  {saving ? "Saving…" : "⤓ Save"}
+                </button>
+              )}
             </div>
           </div>
 
           <div className="legend-mini">
-            <img src={svgUrl} alt={snake.name} />
+            <SnakeAvatar token={snake} className="legend-avatar" />
             <div className="stack">
               <span className="lm-name">{traits.skin}</span>
               <span className="lm-sub">{traits.gaze} · {traits.form}</span>
