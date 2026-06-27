@@ -42,9 +42,9 @@ export default function WalletGate({ onConnected, onCancel }) {
           <p className="page-eyebrow">Connect wallet</p>
           <h2>Play with your Snakiox</h2>
           <p>
-            Your playable serpents are the Snakiox NFTs you hold on Sepolia.
+            Your playable serpents are the Snakiox NFTs you hold on Ethereum.
             Connect your wallet to load your collection — you'll be asked to
-            switch to the Sepolia testnet.
+            switch to Ethereum mainnet.
           </p>
 
           {noWallet ? (
@@ -73,7 +73,7 @@ export default function WalletGate({ onConnected, onCancel }) {
                   </span>
                   <span className="stack">
                     <span className="wo-name">{w.name}</span>
-                    <span className="wo-addr">Sepolia · ETH</span>
+                    <span className="wo-addr">Ethereum · ETH</span>
                   </span>
                   {pending === w.id ? (
                     <span className="spinner" style={{ marginLeft: "auto" }} />
@@ -88,8 +88,8 @@ export default function WalletGate({ onConnected, onCancel }) {
           {error && <p className="gate-error">{error}</p>}
 
           <p className="gate-note">
-            Sepolia testnet · no real funds. We only request read access + a
-            network switch.
+            Ethereum mainnet · read-only — we never move funds. We only request
+            read access + a network switch.
           </p>
 
           <div className="flex" style={{ marginTop: "1.2rem", justifyContent: "center" }}>

@@ -1,8 +1,8 @@
 // On-chain wallet + NFT loading for the arcade. Replaces the old mock wallet:
 // playable serpents now come from the REAL Snakiox ERC-721s a wallet holds on
-// Sepolia. We read each token's on-chain metadata (tokenURI → base64 JSON) and
-// shape it into the exact token object the renderer/UI already expect, so the
-// in-game snake is byte-for-byte the minted NFT.
+// Ethereum mainnet. We read each token's on-chain metadata (tokenURI → base64
+// JSON) and shape it into the exact token object the renderer/UI already expect,
+// so the in-game snake is byte-for-byte the minted NFT.
 import {
   BrowserProvider,
   Contract,
@@ -11,14 +11,14 @@ import {
 } from "ethers";
 
 export const CONTRACT_ADDRESS = import.meta.env.VITE_MINT_CONTRACT_ADDRESS || "";
-export const CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 11155111);
+export const CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 1);
 export const RPC_URL = import.meta.env.VITE_RPC_URL || "";
 export const DEPLOY_BLOCK = Number(import.meta.env.VITE_DEPLOY_BLOCK || 0);
 export const OPENSEA_BASE_URL =
-  import.meta.env.VITE_OPENSEA_BASE_URL || "https://testnets.opensea.io/assets/sepolia";
+  import.meta.env.VITE_OPENSEA_BASE_URL || "https://opensea.io/item/ethereum";
 
 const CHAIN_HEX = `0x${CHAIN_ID.toString(16)}`;
-const EXPLORER = "https://sepolia.etherscan.io";
+const EXPLORER = "https://etherscan.io";
 
 // Only the reads we need to enumerate + render a wallet's collection.
 const ABI = [
@@ -85,7 +85,7 @@ export async function connectWallet(walletOrProvider) {
   const accounts = await provider.request({ method: "eth_requestAccounts" });
   if (!accounts?.length) throw new Error("No account authorized.");
 
-  await ensureSepolia(provider);
+  await ensureMainnet(provider);
 
   return { address: getAddress(accounts[0]), provider };
 }
@@ -107,7 +107,7 @@ export async function getConnectedAccount() {
   return null;
 }
 
-export async function ensureSepolia(provider = injected()) {
+export async function ensureMainnet(provider = injected()) {
   if (!provider) return;
   try {
     const current = await provider.request({ method: "eth_chainId" });
@@ -127,9 +127,9 @@ export async function ensureSepolia(provider = injected()) {
         method: "wallet_addEthereumChain",
         params: [{
           chainId: CHAIN_HEX,
-          chainName: "Sepolia",
-          nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
-          rpcUrls: [RPC_URL || "https://rpc.sepolia.org"],
+          chainName: "Ethereum",
+          nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+          rpcUrls: [RPC_URL || "https://eth.llamarpc.com"],
           blockExplorerUrls: [EXPLORER]
         }]
       });
