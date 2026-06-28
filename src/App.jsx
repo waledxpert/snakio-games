@@ -115,20 +115,14 @@ export default function App() {
 
   return (
     <div className="app-shell crt-bg">
-      <header className="topbar">
+      <header className="navbar">
         <Brand onClick={goHub} />
-        <div className="flex gap-sm">
-          {address && (
-            <button className="pix-btn pix-btn--ghost" onClick={() => setScreen("select")}>
-              My Snakiox
-            </button>
-          )}
-          <WalletPill
-            address={address}
-            onConnect={() => setScreen("wallet")}
-            onDisconnect={disconnect}
-          />
-        </div>
+        <WalletPill
+          address={address}
+          onConnect={() => setScreen("wallet")}
+          onDisconnect={disconnect}
+          onMySnakiox={() => setScreen("select")}
+        />
       </header>
 
       {screen === "hub" && <Hub onPlay={handlePlayGame} wallet={address} />}

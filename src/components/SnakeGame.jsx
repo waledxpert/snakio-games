@@ -4,6 +4,102 @@ import { rarityClass } from "../lib/helpers";
 import { downloadResultCard } from "../snakiox/shareCard";
 import SnakeAvatar from "./SnakeAvatar";
 
+const ARROWS = { up: "▲", down: "▼", left: "◀", right: "▶" };
+
+/* ─── Swipe Trackpad ──────────────────────────────────────────────────────── */
+function Trackpad({ onDir, onTap }) {
+  const padRef = useRef(null);
+  const startRef = useRef(null);
+  const [touched, setTouched] = useState(false);
+  const [touchPct, setTouchPct] = useState(null); // {x,y} 0-1
+  const [flashDir, setFlashDir] = useState(null);
+  const timerRef = useRef(null);
+
+  const getRelPos = (t) => {
+    const r = padRef.current?.getBoundingClientRect();
+    if (!r) return null;
+    return {
+      x: Math.max(0, Math.min(1, (t.clientX - r.left) / r.width)),
+      y: Math.max(0, Math.min(1, (t.clientY - r.top) / r.height)),
+    };
+  };
+
+  const fire = (dir) => {
+    onDir(dir);
+    setFlashDir(dir);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setFlashDir(null), 260);
+  };
+
+  const onStart = (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    startRef.current = { x: t.clientX, y: t.clientY };
+    setTouched(true);
+    setTouchPct(getRelPos(t));
+  };
+
+  const onMove = (e) => {
+    e.preventDefault();
+    if (!startRef.current) return;
+    const t = e.touches[0];
+    const dx = t.clientX - startRef.current.x;
+    const dy = t.clientY - startRef.current.y;
+    if (Math.hypot(dx, dy) < 22) return;
+    const dir = Math.abs(dx) > Math.abs(dy)
+      ? (dx > 0 ? "right" : "left")
+      : (dy > 0 ? "down" : "up");
+    fire(dir);
+    startRef.current = { x: t.clientX, y: t.clientY };
+    setTouchPct(getRelPos(t));
+  };
+
+  const onEnd = () => {
+    startRef.current = null;
+    setTouched(false);
+    setTouchPct(null);
+  };
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  return (
+    <div
+      ref={padRef}
+      className={`trackpad${touched ? " trackpad--active" : ""}`}
+      onTouchStart={onStart}
+      onTouchMove={onMove}
+      onTouchEnd={onEnd}
+      onTouchCancel={onEnd}
+      onClick={onTap}
+      role="button"
+      tabIndex={0}
+      aria-label="Swipe trackpad to steer"
+    >
+      {/* Corner marks */}
+      <span className="tp-c tl" /><span className="tp-c tr" />
+      <span className="tp-c bl" /><span className="tp-c br" />
+
+      {/* Directional arrows */}
+      {Object.entries(ARROWS).map(([d, glyph]) => (
+        <span key={d} className={`tp-arrow tp-${d}${flashDir === d ? " tp-lit" : ""}`}>
+          {glyph}
+        </span>
+      ))}
+
+      {/* Center label */}
+      <span className="tp-label">{touched ? "" : "swipe to steer"}</span>
+
+      {/* Glow follows finger */}
+      {touchPct && (
+        <span
+          className="tp-glow"
+          style={{ left: `${touchPct.x * 100}%`, top: `${touchPct.y * 100}%` }}
+        />
+      )}
+    </div>
+  );
+}
+
 const GRID = 22;
 const BASE_SPEED = 135;    // ms per step at level 1
 const SPEED_STEP = 9;      // ms shaved per level
@@ -81,6 +177,10 @@ export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
     best: initialBest()
   });
   const [saving, setSaving] = useState(false);
+  const [ctrlMode, setCtrlMode] = useState(
+    () => localStorage.getItem("snakiox.ctrl") ?? "dpad"
+  );
+  const switchCtrl = (m) => { setCtrlMode(m); localStorage.setItem("snakiox.ctrl", m); };
 
   const traits = snake.traits;
 
@@ -451,14 +551,45 @@ export default function SnakeGame({ snake, bg, onExit, onChangeSetup }) {
             </div>
           </div>
 
-          {/* On-screen dpad for touch */}
-          <div className="panel" style={{ padding: "0.9rem", display: "grid", placeItems: "center" }}>
-            <div className="dpad">
-              <button className="up" onClick={() => queueDir("up")}>▲</button>
-              <button className="left" onClick={() => queueDir("left")}>◀</button>
-              <button className="down" onClick={() => queueDir("down")}>▼</button>
-              <button className="right" onClick={() => queueDir("right")}>▶</button>
+          {/* On-screen controls: d-pad or swipe trackpad */}
+          <div className="panel dpad-panel">
+            {/* Mode toggle */}
+            <div className="ctrl-toggle">
+              <button
+                className={`ctrl-toggle-btn${ctrlMode === "dpad" ? " ctrl-toggle-btn--on" : ""}`}
+                onClick={() => switchCtrl("dpad")}
+              >
+                D-Pad
+              </button>
+              <button
+                className={`ctrl-toggle-btn${ctrlMode === "trackpad" ? " ctrl-toggle-btn--on" : ""}`}
+                onClick={() => switchCtrl("trackpad")}
+              >
+                Swipe
+              </button>
             </div>
+
+            {ctrlMode === "dpad" ? (
+              <div className="dpad">
+                <button className="up" onClick={() => { queueDir("up"); if (phaseRef.current === "idle") beginRun(); }}>▲</button>
+                <button className="left" onClick={() => { queueDir("left"); if (phaseRef.current === "idle") beginRun(); }}>◀</button>
+                <button className="down" onClick={() => { queueDir("down"); if (phaseRef.current === "idle") beginRun(); }}>▼</button>
+                <button className="right" onClick={() => { queueDir("right"); if (phaseRef.current === "idle") beginRun(); }}>▶</button>
+              </div>
+            ) : (
+              <Trackpad
+                onDir={(dir) => {
+                  queueDir(dir);
+                  if (phaseRef.current === "idle") beginRun();
+                }}
+                onTap={() => {
+                  const p = phaseRef.current;
+                  if (p === "idle" || p === "dead" || p === "won") beginRun();
+                  else if (p === "playing") pause();
+                  else if (p === "paused") resume();
+                }}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -12,10 +12,11 @@ function BgThumb({ bg }) {
   return <canvas ref={ref} />;
 }
 
-function NftTile({ token, selected, onSelect }) {
+function NftTile({ token, selected, onSelect, index = 0 }) {
   return (
     <button
       className={`nft-tile ${selected ? "nft-tile--selected" : ""}`}
+      style={{ "--tile-i": index }}
       onClick={() => onSelect(token)}
     >
       <div className="nft-art">
@@ -127,12 +128,13 @@ export default function SnakeSelect({
             <button className="pix-btn pix-btn--ghost" onClick={onReload}>↻ Reload</button>
           </div>
           <div className="nft-grid">
-            {snakes.map((token) => (
+            {snakes.map((token, i) => (
               <NftTile
                 key={token.tokenId}
                 token={token}
                 selected={token.tokenId === selectedId}
                 onSelect={(tk) => setSnakeId(tk.tokenId)}
+                index={i}
               />
             ))}
           </div>

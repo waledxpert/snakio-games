@@ -1,9 +1,7 @@
-// Tiny shared UI components used across screens.
 import { useEffect, useRef, useState } from "react";
 import { explorerAddressUrl, shortAddress } from "../snakiox/chain";
 
-export function Logo({ size = 28 }) {
-  // Blocky pixel serpent head mark.
+export function Logo({ size = 26 }) {
   return (
     <svg
       width={size}
@@ -11,6 +9,7 @@ export function Logo({ size = 28 }) {
       viewBox="0 0 16 16"
       shapeRendering="crispEdges"
       aria-hidden="true"
+      style={{ flexShrink: 0 }}
     >
       <rect x="2" y="9" width="3" height="3" fill="#6f9d3a" />
       <rect x="5" y="9" width="3" height="3" fill="#9fd84f" />
@@ -26,19 +25,17 @@ export function Logo({ size = 28 }) {
 
 export function Brand({ onClick }) {
   return (
-    <div className="topbar-left" onClick={onClick} role="button" tabIndex={0}>
+    <button className="nav-brand" onClick={onClick} aria-label="Go to arcade">
       <Logo />
-      <div className="stack">
-        <span className="brand">
-          SNAKI<span className="brand-accent">O</span>X
-        </span>
-        <span className="brand-sub">Arcade</span>
-      </div>
-    </div>
+      <span className="nav-brand-text">
+        SNAKI<span className="nav-brand-o">O</span>X
+      </span>
+      <span className="nav-brand-tag">Arcade</span>
+    </button>
   );
 }
 
-export function WalletPill({ address, onConnect, onDisconnect }) {
+export function WalletPill({ address, onConnect, onDisconnect, onMySnakiox }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const ref = useRef(null);
@@ -54,8 +51,9 @@ export function WalletPill({ address, onConnect, onDisconnect }) {
 
   if (!address) {
     return (
-      <button className="pix-btn pix-btn--phosphor" onClick={onConnect} title="Connect your wallet">
-        Connect Wallet
+      <button className="nav-connect" onClick={onConnect}>
+        <span className="nav-connect-dot" aria-hidden="true" />
+        <span>Connect</span>
       </button>
     );
   }
@@ -64,31 +62,58 @@ export function WalletPill({ address, onConnect, onDisconnect }) {
     try {
       await navigator.clipboard.writeText(address);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    } catch {
-      /* clipboard blocked — ignore */
-    }
+      setTimeout(() => setCopied(false), 1400);
+    } catch { /* clipboard blocked */ }
   };
 
   return (
-    <div className="wallet-menu" ref={ref}>
-      <button className="wallet-pill" title={address} onClick={() => setOpen((v) => !v)}>
-        <span className="dot" />
-        {shortAddress(address)}
-        <span className="wallet-pill-caret">▾</span>
+    <div className="nav-wallet-wrap" ref={ref}>
+      <button
+        className="nav-wallet"
+        onClick={() => setOpen((v) => !v)}
+        title={address}
+        aria-expanded={open}
+      >
+        <span className="nav-wallet-dot" aria-hidden="true" />
+        <span>{shortAddress(address)}</span>
+        <span className="nav-wallet-caret" aria-hidden="true">
+          {open ? "▴" : "▾"}
+        </span>
       </button>
+
       {open && (
-        <div className="wallet-dropdown panel">
-          <span className="panel-corner tl" />
-          <span className="panel-corner br" />
-          <div className="wd-addr">{shortAddress(address)}</div>
-          <button className="wd-item" onClick={copy}>
+        <div className="nav-dropdown" role="menu">
+          <div className="nav-dd-addr">{shortAddress(address)}</div>
+
+          <button
+            className="nav-dd-item"
+            role="menuitem"
+            onClick={() => { setOpen(false); onMySnakiox?.(); }}
+          >
+            My Snakiox
+          </button>
+
+          <button className="nav-dd-item" role="menuitem" onClick={copy}>
             {copied ? "Copied ✓" : "Copy address"}
           </button>
-          <a className="wd-item" href={explorerAddressUrl(address)} target="_blank" rel="noreferrer">
-            View on Etherscan ↗
+
+          <a
+            className="nav-dd-item"
+            role="menuitem"
+            href={explorerAddressUrl(address)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Etherscan ↗
           </a>
-          <button className="wd-item wd-item--danger" onClick={() => { setOpen(false); onDisconnect(); }}>
+
+          <div className="nav-dd-divider" />
+
+          <button
+            className="nav-dd-item nav-dd-item--danger"
+            role="menuitem"
+            onClick={() => { setOpen(false); onDisconnect(); }}
+          >
             Disconnect
           </button>
         </div>
