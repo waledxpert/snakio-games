@@ -26,7 +26,8 @@ export default function HomePage() {
         <p className="page-eyebrow">Private 1v1 Snake</p>
         <h1 className="page-title">Snake PvP</h1>
         <p className="page-sub">
-          Create a private match, pick your snake and background, invite a friend, and race on separate boards, share your scores.
+          Create a private match, pick your snake and background, invite a
+          friend, and race on separate boards, share your scores.
         </p>
 
         <div className="pvp-cta-row">

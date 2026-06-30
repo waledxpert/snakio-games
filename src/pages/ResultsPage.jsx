@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { createMatchShare, fetchMatch, rematchMatch } from "../lib/pvpApi";
-import { getPlayerIdForRoom, getPlayerTokenForRoom, saveRoomSession } from "../lib/matchSession";
+import {
+  getPlayerIdForRoom,
+  getPlayerTokenForRoom,
+  saveRoomSession,
+} from "../lib/matchSession";
 import { downloadPvpResultCard } from "../lib/pvpResultCard";
 import { createMatchSocket } from "../lib/pvpSocket";
 
@@ -23,25 +27,40 @@ export default function ResultsPage() {
 
   useEffect(() => {
     let active = true;
-    fetchMatch(roomCode)
-      .then((next) => {
+    let pollTimer = null;
+
+    const syncRoom = async () => {
+      try {
+        const next = await fetchMatch(roomCode);
         if (!active) return;
         setRoom(next);
         if (next.rematchInviteUrl) setRematchInviteUrl(next.rematchInviteUrl);
-      })
-      .catch((err) => { if (active) setError(err.message || "Could not load results."); });
+      } catch (err) {
+        if (active) setError(err.message || "Could not load results.");
+      }
+    };
+
+    void syncRoom();
+    pollTimer = window.setInterval(syncRoom, 2000);
 
     const socket = createMatchSocket();
     socketRef.current = socket;
     socket.on("connect", () => {
-      socket.emit("room:join", { code: roomCode, playerId, playerToken });
+      if (playerId && playerToken) {
+        socket.emit("room:join", { code: roomCode, playerId, playerToken });
+      }
     });
     socket.on("room:state", (nextRoom) => {
       if (!active) return;
       setRoom(nextRoom);
-      if (nextRoom.rematchInviteUrl) setRematchInviteUrl(nextRoom.rematchInviteUrl);
+      if (nextRoom.rematchInviteUrl)
+        setRematchInviteUrl(nextRoom.rematchInviteUrl);
     });
-    return () => { active = false; socket.disconnect(); };
+    return () => {
+      active = false;
+      if (pollTimer) window.clearInterval(pollTimer);
+      socket.disconnect();
+    };
   }, [roomCode, playerId, playerToken]);
 
   const me = useMemo(
@@ -52,7 +71,8 @@ export default function ResultsPage() {
     () => room?.players?.find((p) => p.id !== playerId) ?? null,
     [room, playerId],
   );
-  const isWinner = room?.result?.winnerPlayerId && room.result.winnerPlayerId === playerId;
+  const isWinner =
+    room?.result?.winnerPlayerId && room.result.winnerPlayerId === playerId;
   const isDraw = !room?.result?.winnerPlayerId;
   const resultLabel = isDraw ? "DRAW" : isWinner ? "YOU WIN" : "YOU LOSE";
 
@@ -62,11 +82,17 @@ export default function ResultsPage() {
   }
 
   async function handleCreateShare() {
-    if (!playerId || !playerToken) { setError("Missing player session."); return; }
+    if (!playerId || !playerToken) {
+      setError("Missing player session.");
+      return;
+    }
     setSharing(true);
     setError("");
     try {
-      const payload = await createMatchShare(roomCode, { playerId, playerToken });
+      const payload = await createMatchShare(roomCode, {
+        playerId,
+        playerToken,
+      });
       setShareUrl(payload.shareUrl);
       await navigator.clipboard.writeText(payload.shareUrl).catch(() => {});
       setShareCopied(true);
@@ -79,7 +105,10 @@ export default function ResultsPage() {
   }
 
   async function handleRematch() {
-    if (!playerId || !playerToken) { setError("Missing player session."); return; }
+    if (!playerId || !playerToken) {
+      setError("Missing player session.");
+      return;
+    }
     setRematching(true);
     setError("");
     try {
@@ -114,7 +143,11 @@ export default function ResultsPage() {
   }
 
   const resultEmoji = isDraw ? "🤝" : isWinner ? "🏆" : "💀";
-  const resultColor = isDraw ? "var(--amber)" : isWinner ? "var(--phosphor)" : "var(--danger)";
+  const resultColor = isDraw
+    ? "var(--amber)"
+    : isWinner
+      ? "var(--phosphor)"
+      : "var(--danger)";
 
   return (
     <div className="page result-page">
@@ -122,13 +155,17 @@ export default function ResultsPage() {
       <div className="result-hero" style={{ "--result-color": resultColor }}>
         <span className="result-emoji">{resultEmoji}</span>
         <h1 className="result-headline">{resultLabel}</h1>
-        <p className="result-reason">{room.result?.reason || "Match complete."}</p>
+        <p className="result-reason">
+          {room.result?.reason || "Match complete."}
+        </p>
         <div className="result-room-tag">Room {roomCode}</div>
       </div>
 
       {/* Scoreboard */}
       <div className="result-scores">
-        <div className={`result-score-card${isWinner ? " result-score-card--winner" : ""}`}>
+        <div
+          className={`result-score-card${isWinner ? " result-score-card--winner" : ""}`}
+        >
           <div className="result-score-label">
             <span className="page-eyebrow">YOU</span>
             {isWinner && <span className="result-crown">👑</span>}
@@ -136,7 +173,12 @@ export default function ResultsPage() {
           <strong className="result-player-name">{me?.nickname ?? "—"}</strong>
           <div className="result-stats-grid">
             <div className="result-stat">
-              <span className="result-stat-val" style={{ color: "var(--phosphor)" }}>{me?.score ?? 0}</span>
+              <span
+                className="result-stat-val"
+                style={{ color: "var(--phosphor)" }}
+              >
+                {me?.score ?? 0}
+              </span>
               <span className="result-stat-label">Score</span>
             </div>
             <div className="result-stat">
@@ -144,7 +186,12 @@ export default function ResultsPage() {
               <span className="result-stat-label">Length</span>
             </div>
             <div className="result-stat">
-              <span className="result-stat-val" style={{ color: "var(--amber)" }}>{me?.applesCollected ?? 0}</span>
+              <span
+                className="result-stat-val"
+                style={{ color: "var(--amber)" }}
+              >
+                {me?.applesCollected ?? 0}
+              </span>
               <span className="result-stat-label">Apples</span>
             </div>
           </div>
@@ -152,15 +199,24 @@ export default function ResultsPage() {
 
         <div className="result-vs">VS</div>
 
-        <div className={`result-score-card${!isDraw && !isWinner ? " result-score-card--winner" : ""}`}>
+        <div
+          className={`result-score-card${!isDraw && !isWinner ? " result-score-card--winner" : ""}`}
+        >
           <div className="result-score-label">
             <span className="page-eyebrow">OPPONENT</span>
             {!isDraw && !isWinner && <span className="result-crown">👑</span>}
           </div>
-          <strong className="result-player-name">{opponent?.nickname ?? "—"}</strong>
+          <strong className="result-player-name">
+            {opponent?.nickname ?? "—"}
+          </strong>
           <div className="result-stats-grid">
             <div className="result-stat">
-              <span className="result-stat-val" style={{ color: "var(--phosphor)" }}>{opponent?.score ?? 0}</span>
+              <span
+                className="result-stat-val"
+                style={{ color: "var(--phosphor)" }}
+              >
+                {opponent?.score ?? 0}
+              </span>
               <span className="result-stat-label">Score</span>
             </div>
             <div className="result-stat">
@@ -168,7 +224,12 @@ export default function ResultsPage() {
               <span className="result-stat-label">Length</span>
             </div>
             <div className="result-stat">
-              <span className="result-stat-val" style={{ color: "var(--amber)" }}>{opponent?.applesCollected ?? 0}</span>
+              <span
+                className="result-stat-val"
+                style={{ color: "var(--amber)" }}
+              >
+                {opponent?.applesCollected ?? 0}
+              </span>
               <span className="result-stat-label">Apples</span>
             </div>
           </div>
@@ -189,7 +250,7 @@ export default function ResultsPage() {
       )}
 
       {/* Opponent rematch invite */}
-      {rematchInviteUrl && !room?.rematchCode && (
+      {rematchInviteUrl && room?.rematchCode && (
         <div className="result-share-banner result-share-banner--rematch">
           <div className="result-share-banner-content">
             <p className="result-share-label">🔄 Opponent started a rematch!</p>
@@ -204,7 +265,11 @@ export default function ResultsPage() {
         </div>
       )}
 
-      {error && <p className="pvp-error" style={{ textAlign: "center" }}>{error}</p>}
+      {error && (
+        <p className="pvp-error" style={{ textAlign: "center" }}>
+          {error}
+        </p>
+      )}
 
       {/* Action buttons */}
       <div className="result-actions">
@@ -214,7 +279,13 @@ export default function ResultsPage() {
           disabled={rematching}
           id="rematch-btn"
         >
-          {rematching ? <><span className="spinner" /> Creating…</> : <>🔄 Rematch</>}
+          {rematching ? (
+            <>
+              <span className="spinner" /> Creating…
+            </>
+          ) : (
+            <>🔄 Rematch</>
+          )}
         </button>
 
         <button
@@ -223,14 +294,30 @@ export default function ResultsPage() {
           disabled={sharing || !!shareUrl}
           id="share-btn"
         >
-          {sharing ? <><span className="spinner" /> Generating…</> : shareUrl ? "✓ Link Created" : "🔗 Share Score"}
+          {sharing ? (
+            <>
+              <span className="spinner" /> Generating…
+            </>
+          ) : shareUrl ? (
+            "✓ Link Created"
+          ) : (
+            "🔗 Share Score"
+          )}
         </button>
 
-        <button className="pix-btn pix-btn--lg" onClick={handleExport} id="download-btn">
+        <button
+          className="pix-btn pix-btn--lg"
+          onClick={handleExport}
+          id="download-btn"
+        >
           ⬇ Download Card
         </button>
 
-        <button className="pix-btn pix-btn--ghost pix-btn--lg" onClick={() => navigate("/")} id="leave-btn">
+        <button
+          className="pix-btn pix-btn--ghost pix-btn--lg"
+          onClick={() => navigate("/")}
+          id="leave-btn"
+        >
           ← Home
         </button>
       </div>

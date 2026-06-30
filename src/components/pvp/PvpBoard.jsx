@@ -153,11 +153,31 @@ function createWorld() {
   };
 }
 
+function getCrashMessage(modeId) {
+  if (modeId === "time_attack") {
+    return "Waiting for the timer or your opponent.";
+  }
+  if (modeId === "first_to_length") {
+    return "Waiting for the final result.";
+  }
+  if (modeId === "apple_rush") {
+    return "Waiting for the final result.";
+  }
+  if (modeId === "highest_score") {
+    return "Waiting for your opponent.";
+  }
+  if (modeId === "last_survivor") {
+    return "Waiting for the final result.";
+  }
+  return "Waiting for the server to resolve the match.";
+}
+
 export default function PvpBoard({
   snake,
   background,
   running,
   boardKey,
+  modeId,
   onProgress,
 }) {
   const canvasRef = useRef(null);
@@ -367,8 +387,7 @@ export default function PvpBoard({
           <div className="pvp-board-overlay pvp-board-overlay--danger">
             <h3>You crashed</h3>
             <p>
-              Your final score was {snapshot.score}. Waiting for the server to
-              resolve the match.
+              Your final score was {snapshot.score}. {getCrashMessage(modeId)}
             </p>
           </div>
         )}

@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import PvpBoard from "../components/pvp/PvpBoard";
-import { fetchMatch } from "../lib/pvpApi";
+import { createMatchShare, fetchMatch, rematchMatch } from "../lib/pvpApi";
 import {
   getBackgroundById,
   getModeById,
   resolveSnake,
 } from "../lib/pvpCatalog";
-import { getPlayerIdForRoom, getPlayerTokenForRoom } from "../lib/matchSession";
+import {
+  getPlayerIdForRoom,
+  getPlayerTokenForRoom,
+  saveRoomSession,
+} from "../lib/matchSession";
 import { createMatchSocket } from "../lib/pvpSocket";
+import { downloadPvpResultCard } from "../lib/pvpResultCard";
 import { useWallet } from "../lib/walletContext";
 
 function formatTimer(seconds) {
@@ -29,6 +34,10 @@ export default function MatchPage() {
   const lastSentRef = useRef({ time: 0, payload: null });
   const [room, setRoom] = useState(null);
   const [error, setError] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareCopied, setShareCopied] = useState(false);
+  const [rematching, setRematching] = useState(false);
 
   const me = useMemo(
     () => room?.players?.find((p) => p.id === playerId) ?? null,
@@ -41,10 +50,20 @@ export default function MatchPage() {
   const snake = resolveSnake(me, ownedSnakes);
   const background = getBackgroundById(me?.backgroundId);
   const mode = getModeById(room?.mode);
+  const isDraw = room?.status === "finished" && !room?.result?.winnerPlayerId;
+  const isWinner =
+    room?.result?.winnerPlayerId && room.result.winnerPlayerId === playerId;
+  const resultLabel = isDraw ? "DRAW" : isWinner ? "YOU WIN" : "YOU LOSE";
 
   const sendProgress = useCallback(
     (stats) => {
-      if (!socketRef.current || !playerId || !playerToken || room?.status !== "playing") return;
+      if (
+        !socketRef.current ||
+        !playerId ||
+        !playerToken ||
+        room?.status !== "playing"
+      )
+        return;
       const now = Date.now();
       const last = lastSentRef.current;
       const changed =
@@ -55,7 +74,11 @@ export default function MatchPage() {
         stats.applesCollected !== last.payload.applesCollected;
       if (!changed && now - last.time < 250) return;
       socketRef.current.emit("match:progress", {
-        code: roomCode, playerId, playerToken, ...stats, clientTime: now,
+        code: roomCode,
+        playerId,
+        playerToken,
+        ...stats,
+        clientTime: now,
       });
       lastSentRef.current = { time: now, payload: stats };
     },
@@ -67,15 +90,25 @@ export default function MatchPage() {
       navigate(`/play/${roomCode}`);
       return undefined;
     }
+
     let active = true;
-    fetchMatch(roomCode)
-      .then((next) => {
+    let pollTimer = null;
+
+    const syncRoom = async () => {
+      try {
+        const next = await fetchMatch(roomCode);
         if (!active) return;
         setRoom(next);
-        if (next.status === "waiting" || next.status === "countdown") navigate(`/lobby/${roomCode}`);
+        if (next.status === "waiting" || next.status === "countdown")
+          navigate(`/lobby/${roomCode}`);
         if (next.status === "finished") navigate(`/results/${roomCode}`);
-      })
-      .catch((err) => { if (active) setError(err.message || "Could not load match."); });
+      } catch (err) {
+        if (active) setError(err.message || "Could not load match.");
+      }
+    };
+
+    void syncRoom();
+    pollTimer = window.setInterval(syncRoom, 1500);
 
     const socket = createMatchSocket();
     socketRef.current = socket;
@@ -85,13 +118,75 @@ export default function MatchPage() {
     socket.on("room:state", (nextRoom) => {
       setRoom(nextRoom);
       if (nextRoom.status === "finished") navigate(`/results/${roomCode}`);
-      if (nextRoom.status === "waiting" || nextRoom.status === "countdown") navigate(`/lobby/${roomCode}`);
+      if (nextRoom.status === "waiting" || nextRoom.status === "countdown")
+        navigate(`/lobby/${roomCode}`);
+    });
+    socket.on("match:ended", () => {
+      navigate(`/results/${roomCode}`);
     });
     socket.on("match:error", (payload) => {
       setError(payload.message || "Something went wrong.");
     });
-    return () => { active = false; socket.disconnect(); };
+    return () => {
+      active = false;
+      if (pollTimer) window.clearInterval(pollTimer);
+      socket.disconnect();
+    };
   }, [navigate, playerId, playerToken, roomCode]);
+
+  async function handleExport() {
+    if (!room) return;
+    await downloadPvpResultCard({ room, me, opponent, resultLabel });
+  }
+
+  async function handleCreateShare() {
+    if (!playerId || !playerToken) {
+      setError("Missing player session.");
+      return;
+    }
+    setSharing(true);
+    setError("");
+    try {
+      const payload = await createMatchShare(roomCode, {
+        playerId,
+        playerToken,
+      });
+      setShareUrl(payload.shareUrl);
+      await navigator.clipboard.writeText(payload.shareUrl).catch(() => {});
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch (err) {
+      setError(err.message || "Could not create share link.");
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  async function handleRematch() {
+    if (!playerId || !playerToken) {
+      setError("Missing player session.");
+      return;
+    }
+    setRematching(true);
+    setError("");
+    try {
+      const payload = await rematchMatch(roomCode, { playerId, playerToken });
+      saveRoomSession(payload.code, {
+        playerId: payload.hostPlayerId,
+        playerToken: payload.hostPlayerToken,
+      });
+      navigate(`/lobby/${payload.code}`);
+    } catch (err) {
+      setError(err.message || "Could not create rematch.");
+      setRematching(false);
+    }
+  }
+
+  async function copyShareUrl() {
+    await navigator.clipboard.writeText(shareUrl).catch(() => {});
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  }
 
   if (!room || !me) {
     return (
@@ -124,12 +219,16 @@ export default function MatchPage() {
 
         <div className="match-hud-center">
           <span className="match-hud-mode">{mode.name}</span>
-          <strong className="match-hud-timer">{formatTimer(room.remainingSeconds)}</strong>
+          <strong className="match-hud-timer">
+            {formatTimer(room.remainingSeconds)}
+          </strong>
         </div>
 
         <div className="match-hud-player match-hud-player--right">
           <span className="match-hud-label">OPP</span>
-          <strong className="match-hud-name">{opponent?.nickname ?? "…"}</strong>
+          <strong className="match-hud-name">
+            {opponent?.nickname ?? "…"}
+          </strong>
           <div className="match-hud-stats">
             <span className="match-hud-stat">
               <span className="match-hud-stat-val">{opponent?.score ?? 0}</span>
@@ -143,7 +242,9 @@ export default function MatchPage() {
               >
                 {opponent?.alive ? (opponent.length ?? 0) : "✕"}
               </span>
-              <span className="match-hud-stat-key">{opponent?.alive ? "len" : "out"}</span>
+              <span className="match-hud-stat-key">
+                {opponent?.alive ? "len" : "out"}
+              </span>
             </span>
           </div>
         </div>
@@ -156,9 +257,57 @@ export default function MatchPage() {
           background={background}
           running={room.status === "playing"}
           boardKey={room.startedAt || room.code}
+          modeId={room.mode}
           onProgress={sendProgress}
         />
       </div>
+
+      {shareUrl && room.status === "finished" && (
+        <div className="result-share-banner">
+          <div className="result-share-banner-content">
+            <p className="result-share-label">🔗 Share Link (5 min)</p>
+            <code className="result-share-url">{shareUrl}</code>
+          </div>
+          <button className="pix-btn pix-btn--ghost" onClick={copyShareUrl}>
+            {shareCopied ? "Copied ✓" : "Copy"}
+          </button>
+        </div>
+      )}
+
+      {room.status === "finished" && (
+        <div
+          className="result-actions"
+          style={{ width: "100%", marginTop: "1rem" }}
+        >
+          <button
+            className="pix-btn pix-btn--phosphor pix-btn--lg"
+            onClick={() => navigate(`/results/${roomCode}`)}
+          >
+            View Results
+          </button>
+          <button
+            className="pix-btn pix-btn--amber pix-btn--lg"
+            onClick={handleCreateShare}
+            disabled={sharing || !!shareUrl}
+          >
+            {sharing
+              ? "Generating…"
+              : shareUrl
+                ? "✓ Link Created"
+                : "🔗 Share Score"}
+          </button>
+          <button className="pix-btn pix-btn--lg" onClick={handleExport}>
+            ⬇ Download Card
+          </button>
+          <button
+            className="pix-btn pix-btn--ghost pix-btn--lg"
+            onClick={handleRematch}
+            disabled={rematching}
+          >
+            {rematching ? "Creating…" : "🔄 Rematch"}
+          </button>
+        </div>
+      )}
 
       {error && <p className="pvp-error">{error}</p>}
       <button
