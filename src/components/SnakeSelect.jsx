@@ -13,6 +13,7 @@ function BgThumb({ bg }) {
 }
 
 function NftTile({ token, selected, onSelect, index = 0 }) {
+  const tileStepRate = selected ? 6 : 2;
   return (
     <button
       className={`nft-tile ${selected ? "nft-tile--selected" : ""}`}
@@ -20,7 +21,7 @@ function NftTile({ token, selected, onSelect, index = 0 }) {
       onClick={() => onSelect(token)}
     >
       <div className="nft-art">
-        <SnakeAvatar token={token} />
+        <SnakeAvatar token={token} stepRate={tileStepRate} />
       </div>
       <div className="nft-meta">
         <div className="nft-id">{token.name}</div>
@@ -42,7 +43,7 @@ export default function SnakeSelect({
   initialSnakeId,
   initialBgId,
   onStart,
-  onBack
+  onBack,
 }) {
   const [snakeId, setSnakeId] = useState(initialSnakeId ?? snakes[0]?.tokenId);
   const [bgId, setBgId] = useState(initialBgId ?? BACKGROUNDS[0].id);
@@ -50,7 +51,9 @@ export default function SnakeSelect({
   // The picked id falls back to the first owned token if the current selection
   // isn't in the collection (e.g. after a reload / wallet switch) — derived in
   // render so we never need a state-syncing effect.
-  const selectedId = snakes.some((s) => s.tokenId === snakeId) ? snakeId : snakes[0]?.tokenId;
+  const selectedId = snakes.some((s) => s.tokenId === snakeId)
+    ? snakeId
+    : snakes[0]?.tokenId;
 
   const header = (
     <>
@@ -61,7 +64,9 @@ export default function SnakeSelect({
         <div className="tag">Classic Coil · Setup</div>
       </div>
       <header className="page-head">
-        <p className="page-eyebrow">{address ? shortAddress(address) : "Your collection"}</p>
+        <p className="page-eyebrow">
+          {address ? shortAddress(address) : "Your collection"}
+        </p>
         <h1 className="page-title">Choose your serpent</h1>
         <p className="page-sub">
           Pick the Snakiox you'll run with — its skin and gaze render live in
@@ -76,7 +81,10 @@ export default function SnakeSelect({
     return (
       <div className="page">
         {header}
-        <div className="empty-tile" style={{ display: "grid", placeItems: "center", gap: "0.8rem" }}>
+        <div
+          className="empty-tile"
+          style={{ display: "grid", placeItems: "center", gap: "0.8rem" }}
+        >
           <span className="spinner" />
           <span>Reading your Snakiox from the chain…</span>
         </div>
@@ -90,7 +98,9 @@ export default function SnakeSelect({
         {header}
         <div className="empty-tile" style={{ textAlign: "center" }}>
           <p style={{ margin: "0 0 1rem" }}>{error}</p>
-          <button className="pix-btn pix-btn--phosphor" onClick={onReload}>↻ Retry</button>
+          <button className="pix-btn pix-btn--phosphor" onClick={onReload}>
+            ↻ Retry
+          </button>
         </div>
       </div>
     );
@@ -101,12 +111,19 @@ export default function SnakeSelect({
       <div className="page">
         {header}
         <div className="empty-tile" style={{ textAlign: "center" }}>
-          <p style={{ margin: "0 0 0.4rem", fontWeight: 700 }}>No Snakiox in this wallet yet.</p>
+          <p style={{ margin: "0 0 0.4rem", fontWeight: 700 }}>
+            No Snakiox in this wallet yet.
+          </p>
           <p className="faint" style={{ margin: "0 0 1.2rem" }}>
             Mint a Snakiox to get a playable serpent, then come back and reload.
           </p>
-          <div className="flex gap-sm" style={{ justifyContent: "center", flexWrap: "wrap" }}>
-            <button className="pix-btn pix-btn--phosphor" onClick={onReload}>↻ Reload collection</button>
+          <div
+            className="flex gap-sm"
+            style={{ justifyContent: "center", flexWrap: "wrap" }}
+          >
+            <button className="pix-btn pix-btn--phosphor" onClick={onReload}>
+              ↻ Reload collection
+            </button>
           </div>
         </div>
       </div>
@@ -124,8 +141,12 @@ export default function SnakeSelect({
       <div className="select-layout">
         <section>
           <div className="flex-between" style={{ marginBottom: "0.6rem" }}>
-            <h3 className="section-title" style={{ margin: 0 }}>Your Snakiox ({snakes.length})</h3>
-            <button className="pix-btn pix-btn--ghost" onClick={onReload}>↻ Reload</button>
+            <h3 className="section-title" style={{ margin: 0 }}>
+              Your Snakiox ({snakes.length})
+            </h3>
+            <button className="pix-btn pix-btn--ghost" onClick={onReload}>
+              ↻ Reload
+            </button>
           </div>
           <div className="nft-grid">
             {snakes.map((token, i) => (
@@ -151,19 +172,30 @@ export default function SnakeSelect({
               <SnakeAvatar token={snake} className="legend-avatar" />
               <div className="stack gap-sm">
                 <span className="lm-name">{t.skin}</span>
-                <span className="lm-sub">{snake.name} · {t.rarity}</span>
-                <span className={`rarity-tag ${rarityClass(t.rarity)}`} style={{ marginTop: 2 }}>
+                <span className="lm-sub">
+                  {snake.name} · {t.rarity}
+                </span>
+                <span
+                  className={`rarity-tag ${rarityClass(t.rarity)}`}
+                  style={{ marginTop: 2 }}
+                >
                   {t.rarity}
                 </span>
               </div>
             </div>
             <dl className="stat-row mt-md">
-              <dt>Form</dt><dd>{t.form}</dd>
-              <dt>Gaze</dt><dd>{t.gaze}</dd>
-              <dt>Series</dt><dd>{t.skinSeries}</dd>
-              <dt>Mark</dt><dd>{t.mark}</dd>
-              <dt>Crown</dt><dd>{t.crown}</dd>
-              <dt>Sigil</dt><dd>{t.sigil}</dd>
+              <dt>Form</dt>
+              <dd>{t.form}</dd>
+              <dt>Gaze</dt>
+              <dd>{t.gaze}</dd>
+              <dt>Series</dt>
+              <dd>{t.skinSeries}</dd>
+              <dt>Mark</dt>
+              <dd>{t.mark}</dd>
+              <dt>Crown</dt>
+              <dd>{t.crown}</dd>
+              <dt>Sigil</dt>
+              <dd>{t.sigil}</dd>
             </dl>
             <a
               className="tag link"
@@ -193,7 +225,14 @@ export default function SnakeSelect({
                 </button>
               ))}
             </div>
-            <p className="faint mt-sm" style={{ fontSize: "0.78rem", lineHeight: 1.5, margin: "0.6rem 0 0" }}>
+            <p
+              className="faint mt-sm"
+              style={{
+                fontSize: "0.78rem",
+                lineHeight: 1.5,
+                margin: "0.6rem 0 0",
+              }}
+            >
               {bg.blurb}
             </p>
           </div>
