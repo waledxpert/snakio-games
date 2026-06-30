@@ -37,6 +37,7 @@ export default function ArcadePage() {
 
   useEffect(() => {
     if (!address && screen !== "hub" && screen !== "wallet") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setScreen("hub");
     }
   }, [address, screen]);

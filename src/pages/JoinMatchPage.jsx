@@ -39,9 +39,7 @@ export default function JoinMatchPage() {
       }
     }
     loadRoom();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [roomCode]);
 
   async function handleJoin() {
@@ -73,7 +71,10 @@ export default function JoinMatchPage() {
   if (loading) {
     return (
       <div className="page">
-        <p className="muted">Loading match…</p>
+        <div className="pvp-loading-state">
+          <span className="spinner" />
+          <p className="muted">Loading match…</p>
+        </div>
       </div>
     );
   }
@@ -81,105 +82,74 @@ export default function JoinMatchPage() {
   if (error && !room) {
     return (
       <div className="page">
-        <button
-          className="pix-btn pix-btn--ghost"
-          onClick={() => navigate("/")}
-        >
-          ← Home
-        </button>
+        <button className="pix-btn pix-btn--ghost" onClick={() => navigate("/")}>← Home</button>
         <p className="pvp-error mt-md">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="page page--wide">
-      <div
-        className="flex-between"
-        style={{ marginBottom: "1.2rem", flexWrap: "wrap", gap: "0.8rem" }}
-      >
-        <button
-          className="pix-btn pix-btn--ghost pix-btn--lg"
-          onClick={() => navigate("/")}
-        >
-          ← Home
-        </button>
-        <div className="tag">Invite code · {roomCode}</div>
+    <div className="page">
+      <div className="pvp-page-nav">
+        <button className="pix-btn pix-btn--ghost" onClick={() => navigate("/")}>← Home</button>
+        <div className="tag">Code · {roomCode}</div>
       </div>
 
       <header className="page-head">
-        <p className="page-eyebrow">Join flow</p>
+        <p className="page-eyebrow">Invite</p>
         <h1 className="page-title">Join Match</h1>
-        <p className="page-sub">
-          The backend shares room mode and availability here. Once you choose
-          your setup, the frontend sends your player data and moves you into the
-          lobby.
-        </p>
+        <p className="page-sub">Choose your snake and backdrop, then join.</p>
       </header>
 
-      <div className="pvp-two-col">
-        <section className="panel pvp-panel-pad">
-          <h3 className="section-title">Match Info</h3>
-          <dl className="pvp-meta-list">
-            <div>
-              <dt>Mode</dt>
-              <dd>{describeMode(room.mode, room.settings)}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{room.status}</dd>
-            </div>
-            <div>
-              <dt>Host</dt>
-              <dd>{room.players[0]?.nickname ?? "Waiting"}</dd>
-            </div>
-          </dl>
-
-          {existingPlayerId && (
-            <div className="pvp-summary-box mt-md">
-              <p className="muted" style={{ margin: 0 }}>
-                You already joined this room on this browser. You can go
-                straight back to the lobby.
-              </p>
-              <button
-                className="pix-btn pix-btn--phosphor mt-sm"
-                onClick={() => navigate(`/lobby/${roomCode}`)}
-              >
-                Open Lobby
-              </button>
-            </div>
-          )}
-        </section>
-
-        <section className="panel pvp-panel-pad">
-          {matchIsFull && !existingPlayerId ? (
-            <div className="pvp-summary-box">
-              <h3 className="section-title">Room full</h3>
-              <p className="muted">
-                This invite already has a guest player attached.
-              </p>
-            </div>
-          ) : (
-            <>
-              <LoadoutForm
-                value={loadout}
-                onChange={setLoadout}
-                disabled={submitting || Boolean(existingPlayerId)}
-              />
-              {error && <p className="pvp-error">{error}</p>}
-              {!existingPlayerId && (
-                <button
-                  className="pix-btn pix-btn--phosphor pix-btn--lg pix-btn--block mt-md"
-                  onClick={handleJoin}
-                  disabled={submitting}
-                >
-                  {submitting ? "Joining..." : "Ready Up"}
-                </button>
-              )}
-            </>
-          )}
-        </section>
+      {/* Room info strip */}
+      <div className="pvp-room-info">
+        <div className="pvp-room-info-item">
+          <span className="pvp-room-info-label">Mode</span>
+          <span className="pvp-room-info-val">{describeMode(room.mode, room.settings)}</span>
+        </div>
+        <div className="pvp-room-info-item">
+          <span className="pvp-room-info-label">Host</span>
+          <span className="pvp-room-info-val">{room.players[0]?.nickname ?? "—"}</span>
+        </div>
+        <div className="pvp-room-info-item">
+          <span className="pvp-room-info-label">Status</span>
+          <span className="pvp-room-info-val">{room.status}</span>
+        </div>
       </div>
+
+      {existingPlayerId && (
+        <div className="pvp-summary-box">
+          <p className="muted" style={{ margin: "0 0 0.75rem" }}>
+            You already joined this room on this device.
+          </p>
+          <button
+            className="pix-btn pix-btn--phosphor"
+            onClick={() => navigate(`/lobby/${roomCode}`)}
+          >
+            Open Lobby
+          </button>
+        </div>
+      )}
+
+      {matchIsFull && !existingPlayerId ? (
+        <div className="pvp-summary-box">
+          <h3 className="section-title" style={{ marginTop: 0 }}>Room Full</h3>
+          <p className="muted">This invite already has two players.</p>
+        </div>
+      ) : !existingPlayerId ? (
+        <div className="panel pvp-panel-pad">
+          <LoadoutForm value={loadout} onChange={setLoadout} disabled={submitting} />
+          {error && <p className="pvp-error">{error}</p>}
+          <button
+            className="pix-btn pix-btn--phosphor pix-btn--lg pix-btn--block"
+            style={{ marginTop: "1.25rem" }}
+            onClick={handleJoin}
+            disabled={submitting}
+          >
+            {submitting ? "Joining…" : "Ready Up"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

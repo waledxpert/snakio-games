@@ -101,6 +101,7 @@ export function WalletProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWallet() {
   const value = useContext(WalletContext);
   if (!value) throw new Error("useWallet must be used within WalletProvider");

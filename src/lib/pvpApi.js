@@ -43,6 +43,13 @@ export function createMatchShare(code, payload) {
   });
 }
 
+export function rematchMatch(code, payload) {
+  return request(`/api/matches/${code}/rematch`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function fetchSharedResult(shareId) {
   return request(`/api/shares/${shareId}`);
 }

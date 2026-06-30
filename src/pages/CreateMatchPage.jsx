@@ -32,7 +32,9 @@ export default function CreateMatchPage() {
   useEffect(() => {
     const defaults = createDefaultSettings(modeId);
     const key = selectedMode.setting?.key;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (key) setSettingValue(defaults[key]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     else setSettingValue(null);
   }, [modeId, selectedMode.setting?.key]);
 
@@ -65,107 +67,85 @@ export default function CreateMatchPage() {
   }
 
   return (
-    <div className="page page--wide">
-      <div
-        className="flex-between"
-        style={{ marginBottom: "1.2rem", flexWrap: "wrap", gap: "0.8rem" }}
-      >
-        <button
-          className="pix-btn pix-btn--ghost pix-btn--lg"
-          onClick={() => navigate("/")}
-        >
+    <div className="page">
+      <div className="pvp-page-nav">
+        <button className="pix-btn pix-btn--ghost" onClick={() => navigate("/")}>
           ← Home
         </button>
         <div className="tag">Host Setup</div>
       </div>
 
       <header className="page-head">
-        <p className="page-eyebrow">Frontend plan</p>
+        <p className="page-eyebrow">New PvP Room</p>
         <h1 className="page-title">Create Match</h1>
         <p className="page-sub">
-          The frontend collects the host's setup, the backend creates a room
-          code, and the lobby takes over from there.
+          Set up your loadout and pick a mode, then share the invite link with
+          your opponent.
         </p>
       </header>
 
-      <div className="pvp-two-col">
-        <section className="panel pvp-panel-pad">
-          <LoadoutForm
-            value={loadout}
-            onChange={setLoadout}
-            disabled={submitting}
-          />
-        </section>
+      {/* Two-col on desktop, single-col on mobile */}
+      <div className="pvp-create-grid">
+        {/* Left: Loadout */}
+        <div className="panel pvp-panel-pad">
+          <LoadoutForm value={loadout} onChange={setLoadout} disabled={submitting} />
+        </div>
 
-        <aside className="panel pvp-panel-pad">
-          <h3 className="section-title">Choose Game Mode</h3>
-          <div className="pvp-mode-grid">
-            {GAME_MODES.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                className={`pvp-mode-card ${mode.id === modeId ? "pvp-mode-card--active" : ""}`}
-                onClick={() => setModeId(mode.id)}
-              >
-                <strong>{mode.name}</strong>
-                <span>{mode.summary}</span>
-              </button>
-            ))}
-          </div>
+        {/* Right: Mode + submit */}
+        <div className="pvp-create-side">
+          <div className="panel pvp-panel-pad">
+            <h3 className="section-title">Game Mode</h3>
+            <div className="pvp-mode-grid">
+              {GAME_MODES.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  className={`pvp-mode-card ${mode.id === modeId ? "pvp-mode-card--active" : ""}`}
+                  onClick={() => setModeId(mode.id)}
+                >
+                  <strong>{mode.name}</strong>
+                  <span>{mode.summary}</span>
+                </button>
+              ))}
+            </div>
 
-          {selectedMode.setting && (
-            <div className="mt-md">
-              <h4 className="section-title" style={{ fontSize: "0.92rem" }}>
-                {selectedMode.setting.label}
-              </h4>
-              <div className="pvp-inline-choice-row">
-                {selectedMode.setting.options.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`pix-btn ${settingValue === option.value ? "pix-btn--phosphor" : "pix-btn--ghost"}`}
-                    onClick={() => setSettingValue(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+            {selectedMode.setting && (
+              <div className="mt-md">
+                <h4 className="section-title">{selectedMode.setting.label}</h4>
+                <div className="pvp-setting-row">
+                  {selectedMode.setting.options.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`pix-btn ${settingValue === option.value ? "pix-btn--phosphor" : "pix-btn--ghost"}`}
+                      onClick={() => setSettingValue(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* <div className="pvp-summary-box mt-md">
-            <h3 className="section-title">Backend interaction</h3>
-            <ul>
-              <li>`POST /api/matches` creates the room and host player.</li>
-              <li>
-                The selected snake snapshot is stored with the player entry.
-              </li>
-              <li>
-                The browser stores both player ID and player token for socket
-                auth.
-              </li>
-            </ul>
-          </div> */}
-
-          {!address && (
-            <div className="pvp-summary-box mt-md">
-              <p className="muted" style={{ margin: 0 }}>
-                Want to use your real minted Snakiox? Connect your wallet from
-                the top-right button before creating the room.
-              </p>
-            </div>
-          )}
+            {!address && (
+              <div className="pvp-summary-box mt-md">
+                <p className="muted" style={{ margin: 0 }}>
+                  Connect your wallet to use your own Snakiox NFT.
+                </p>
+              </div>
+            )}
+          </div>
 
           {error && <p className="pvp-error">{error}</p>}
 
           <button
-            className="pix-btn pix-btn--phosphor pix-btn--lg pix-btn--block mt-md"
+            className="pix-btn pix-btn--phosphor pix-btn--lg pix-btn--block"
             onClick={handleCreateMatch}
             disabled={submitting}
           >
-            {submitting ? "Creating..." : "Generate Invite Link"}
+            {submitting ? "Creating…" : "Generate Invite Link"}
           </button>
-        </aside>
+        </div>
       </div>
     </div>
   );

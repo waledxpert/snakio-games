@@ -349,7 +349,7 @@ export default function PvpBoard({
   }, [queueDir]);
 
   return (
-    <div className="pvp-board-shell">
+    <div className="pvp-board-shell pvp-board-shell--stacked">
       <div className="pvp-board-wrap">
         <canvas ref={canvasRef} className="pvp-board" />
         <div
@@ -374,7 +374,7 @@ export default function PvpBoard({
         )}
       </div>
 
-      <div className="panel dpad-panel pvp-mobile-controls">
+      <div className="panel dpad-panel pvp-mobile-controls pvp-controls-below">
         <div className="ctrl-toggle">
           <button
             className={`ctrl-toggle-btn${ctrlMode === "dpad" ? " ctrl-toggle-btn--on" : ""}`}
