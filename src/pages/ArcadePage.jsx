@@ -1,11 +1,12 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWallet } from "../lib/walletContext";
+import { SNAKE_PRESETS, getArcadeMode } from "../lib/pvpCatalog";
 
 const Hub = lazy(() => import("../components/Hub"));
 const WalletGate = lazy(() => import("../components/WalletGate"));
 const SnakeSelect = lazy(() => import("../components/SnakeSelect"));
-const SnakeGame = lazy(() => import("../components/SnakeGame"));
+const ArcadeGame = lazy(() => import("../components/ArcadeGame"));
 
 function ScreenFallback() {
   return (
@@ -16,6 +17,11 @@ function ScreenFallback() {
       </div>
     </div>
   );
+}
+
+// Classic Coil solo is the only run that's playable without a wallet.
+function requiresWallet(config) {
+  return !(config.mode === "classic_coil" && config.opponent === "solo");
 }
 
 export default function ArcadePage() {
@@ -30,6 +36,7 @@ export default function ArcadePage() {
   } = useWallet();
 
   const [screen, setScreen] = useState("hub");
+  const [pendingConfig, setPendingConfig] = useState(null);
   const [pickedSnakeId, setPickedSnakeId] = useState(null);
   const [pickedBgId, setPickedBgId] = useState(null);
   const [activeSnake, setActiveSnake] = useState(null);
@@ -42,17 +49,23 @@ export default function ArcadePage() {
     }
   }, [address, screen]);
 
-  const goHub = useCallback(() => setScreen("hub"), []);
+  const goHub = useCallback(() => {
+    setScreen("hub");
+    setPendingConfig(null);
+  }, []);
 
-  const handlePlayGame = useCallback(
-    (gameId) => {
-      if (gameId === "pvp") {
-        navigate("/pvp");
+  const handlePlayPvp = useCallback(() => navigate("/pvp"), [navigate]);
+
+  const handlePlayArcade = useCallback(
+    (config) => {
+      setPendingConfig(config);
+      if (requiresWallet(config) && !address) {
+        setScreen("wallet");
         return;
       }
-      setScreen(address ? "select" : "wallet");
+      setScreen("select");
     },
-    [address, navigate],
+    [address],
   );
 
   const handleStartRun = useCallback(({ snake, bg }) => {
@@ -63,11 +76,13 @@ export default function ArcadePage() {
     setScreen("game");
   }, []);
 
-  const gameReady = activeSnake && activeBg;
+  const gameReady = activeSnake && activeBg && pendingConfig;
 
   return (
     <Suspense fallback={<ScreenFallback />}>
-      {screen === "hub" && <Hub onPlay={handlePlayGame} wallet={address} />}
+      {screen === "hub" && (
+        <Hub onPlayArcade={handlePlayArcade} onPlayPvp={handlePlayPvp} wallet={address} />
+      )}
 
       {screen === "wallet" && (
         <WalletGate
@@ -82,21 +97,23 @@ export default function ArcadePage() {
       {screen === "select" && (
         <SnakeSelect
           address={address}
-          snakes={snakes}
-          loading={loadingSnakes}
-          error={loadError}
+          snakes={address ? snakes : SNAKE_PRESETS}
+          loading={address ? loadingSnakes : false}
+          error={address ? loadError : ""}
           onReload={reloadSnakes}
           initialSnakeId={pickedSnakeId}
           initialBgId={pickedBgId}
           onStart={handleStartRun}
           onBack={goHub}
+          title={`${getArcadeMode(pendingConfig?.mode).name} · Setup`}
         />
       )}
 
       {screen === "game" && gameReady && (
-        <SnakeGame
+        <ArcadeGame
           snake={activeSnake}
           bg={activeBg}
+          config={pendingConfig}
           onExit={goHub}
           onChangeSetup={() => setScreen("select")}
         />

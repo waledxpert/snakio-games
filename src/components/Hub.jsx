@@ -1,4 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ARCADE_MODES } from "../lib/pvpCatalog";
+import ModeConfig from "./ModeConfig";
 
 function paintArena(ctx, w, h, cellPx, palette, motif) {
   ctx.fillStyle = palette.bg;
@@ -164,18 +166,9 @@ function Thumb({ palette, motif, cellPx = 16 }) {
   return <canvas ref={ref} className="game-thumb-canvas" />;
 }
 
-export default function Hub({ onPlay, wallet }) {
-  const live = {
-    motif: "classic",
-    palette: {
-      bg: "#0a1f12",
-      bg2: "#08160c",
-      grid: "#1f5230",
-      snakeA: "#b6ff5a",
-      snakeB: "#6f9d3a",
-      food: "#ffc24b",
-    },
-  };
+export default function Hub({ onPlayArcade, onPlayPvp, wallet }) {
+  const [configMode, setConfigMode] = useState(null);
+
   const pvp = {
     motif: "duel",
     palette: {
@@ -187,50 +180,6 @@ export default function Hub({ onPlay, wallet }) {
       food: "#ff5a5a",
     },
   };
-  const soon = [
-    {
-      id: "gravity",
-      title: "Gravity Gulp",
-      blurb: "Blocks rain. Catch the right colours, dodge the rest.",
-      motif: "gravity",
-      palette: {
-        bg: "#0d0f1f",
-        bg2: "#080a16",
-        grid: "#26305a",
-        snakeA: "#6b5cff",
-        snakeB: "#9b8bff",
-        food: "#28ffbf",
-      },
-    },
-    {
-      id: "race",
-      title: "Coil Rally",
-      blurb: "Out-slither rival serpents on a neon circuit.",
-      motif: "race",
-      palette: {
-        bg: "#1a0a2e",
-        bg2: "#0d0518",
-        grid: "#3a1a55",
-        snakeA: "#ff2bd6",
-        snakeB: "#7a1f66",
-        food: "#28ffbf",
-      },
-    },
-    {
-      id: "maze",
-      title: "Hiss Labyrinth",
-      blurb: "Navigate a shifting maze for the longest coil.",
-      motif: "maze",
-      palette: {
-        bg: "#101814",
-        bg2: "#0a100d",
-        grid: "#22332a",
-        snakeA: "#5aa9ff",
-        snakeB: "#2c5a8a",
-        food: "#ffc24b",
-      },
-    },
-  ];
 
   return (
     <div className="page">
@@ -239,44 +188,50 @@ export default function Hub({ onPlay, wallet }) {
         <h1 className="page-title">The Arcade</h1>
         <p className="page-sub">
           Each Snakiox you mint is your playable serpent — its skin, gaze and
-          form carry straight into the arena. Pick a game, pick your snake, and
-          grow your coil as long as you can.
+          form carry straight into the arena. Pick a game, choose solo or a duel
+          against the AI, and grow your coil as long as you can.
         </p>
       </header>
 
       <div className="games-grid">
-        <article
-          className="game-card"
-          onClick={() => onPlay("classic")}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="game-thumb">
-            <Thumb palette={live.palette} motif={live.motif} />
-            <span className="game-badge game-badge--live">● Live</span>
-          </div>
-          <div className="game-body">
-            <h2 className="game-title">Classic Coil</h2>
-            <p className="game-blurb">
-              The original. Eat to grow, don't bite your tail. Your Snakiox skin
-              and gaze render live as you play.
-            </p>
-            <div className="game-foot">
-              <span>SNAKE · ARCADE</span>
-              <span>PLAY →</span>
+        {ARCADE_MODES.map((mode) => (
+          <article
+            key={mode.id}
+            className="game-card"
+            onClick={() => setConfigMode(mode)}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="game-thumb">
+              <Thumb palette={mode.palette} motif={mode.motif} />
+              <span className="game-badge game-badge--live">● Live</span>
+              {mode.allowsAi && (
+                <span className="game-badge game-badge--ai">
+                  {mode.allowsSolo ? "Solo · AI" : "vs AI"}
+                </span>
+              )}
             </div>
-          </div>
-        </article>
+            <div className="game-body">
+              <h2 className="game-title">{mode.name}</h2>
+              <p className="game-blurb">{mode.blurb}</p>
+              <div className="game-foot">
+                <span>{mode.foot}</span>
+                <span>PLAY →</span>
+              </div>
+            </div>
+          </article>
+        ))}
 
         <article
           className="game-card"
-          onClick={() => onPlay("pvp")}
+          onClick={onPlayPvp}
           role="button"
           tabIndex={0}
         >
           <div className="game-thumb">
             <Thumb palette={pvp.palette} motif={pvp.motif} />
             <span className="game-badge game-badge--live">● Live</span>
+            <span className="game-badge game-badge--ai">PvP</span>
           </div>
           <div className="game-body">
             <h2 className="game-title">Snake PvP</h2>
@@ -290,29 +245,24 @@ export default function Hub({ onPlay, wallet }) {
             </div>
           </div>
         </article>
-
-        {soon.map((g) => (
-          <article key={g.id} className="game-card game-card--locked">
-            <div className="game-thumb">
-              <Thumb palette={g.palette} motif={g.motif} />
-              <span className="game-badge game-badge--soon">Soon</span>
-            </div>
-            <div className="game-body">
-              <h2 className="game-title">{g.title}</h2>
-              <p className="game-blurb">{g.blurb}</p>
-              <div className="game-foot">
-                <span>LOCKED</span>
-                <span>— —</span>
-              </div>
-            </div>
-          </article>
-        ))}
       </div>
 
       {!wallet && (
         <p className="tag mt-md center" style={{ marginTop: "1.6rem" }}>
-          Tip: connecting a wallet lets you play with your own minted Snakiox.
+          Tip: connecting a wallet lets you play with your own minted Snakiox and
+          rank on the leaderboard. vs-AI modes require a wallet.
         </p>
+      )}
+
+      {configMode && (
+        <ModeConfig
+          mode={configMode}
+          onClose={() => setConfigMode(null)}
+          onStart={(cfg) => {
+            setConfigMode(null);
+            onPlayArcade(cfg);
+          }}
+        />
       )}
     </div>
   );

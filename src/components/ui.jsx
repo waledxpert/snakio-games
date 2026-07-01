@@ -35,6 +35,19 @@ export function Brand({ onClick }) {
   );
 }
 
+export function NavLeaderboardButton({ onClick, active }) {
+  return (
+    <button
+      className={`nav-leaderboard${active ? " nav-leaderboard--active" : ""}`}
+      onClick={onClick}
+      aria-label="View leaderboard"
+    >
+      <span className="nav-leaderboard-icon" aria-hidden="true">🏆</span>
+      <span className="nav-leaderboard-text">Leaderboard</span>
+    </button>
+  );
+}
+
 export function WalletPill({ address, onConnect, onDisconnect, onMySnakiox }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);

@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
-import { connectWallet, hasInjectedWallet, listWallets } from "../snakiox/chain";
+import { connectWallet, hasInjectedWallet, listWallets, shortAddress } from "../snakiox/chain";
+import { getPlayer, upsertPlayer } from "../lib/arcadeApi";
 
 export default function WalletGate({ onConnected, onCancel }) {
   const [wallets, setWallets] = useState(() => listWallets());
   const [pending, setPending] = useState(null);
   const [error, setError] = useState("");
+
+  // Second step: set/update the display name once connected.
+  const [connectedAddress, setConnectedAddress] = useState(null);
+  const [nameInput, setNameInput] = useState("");
 
   // Wallets can announce themselves a beat after load (EIP-6963) — re-poll
   // briefly so a freshly-injected wallet shows up without a manual refresh.
@@ -22,13 +27,85 @@ export default function WalletGate({ onConnected, onCancel }) {
     setPending(wallet.id);
     try {
       const { address } = await connectWallet(wallet);
-      onConnected(address);
+      // Show the name step immediately; prefill any saved name in the
+      // background so a slow backend never delays the UI.
+      setConnectedAddress(address);
+      setPending(null);
+      getPlayer(address)
+        .then((profile) => {
+          const saved = profile?.name || "";
+          if (saved) setNameInput((current) => current || saved);
+        })
+        .catch(() => {});
     } catch (err) {
       // 4001 = user rejected the request.
       setError(err?.code === 4001 ? "Connection request rejected." : err?.message || "Could not connect.");
       setPending(null);
     }
   };
+
+  const saveNameAndContinue = () => {
+    const clean = nameInput.trim().slice(0, 20);
+    // Optimistic: continue right away, persist the name in the background.
+    if (clean) {
+      upsertPlayer({ walletAddress: connectedAddress, name: clean }).catch(() => {});
+    }
+    onConnected(connectedAddress);
+  };
+
+  // ── Step 2: display name ──
+  if (connectedAddress) {
+    return (
+      <div className="page">
+        <div className="gate-wrap">
+          <div className="gate-card panel">
+            <span className="panel-corner tl" />
+            <span className="panel-corner tr" />
+            <span className="panel-corner bl" />
+            <span className="panel-corner br" />
+
+            <p className="page-eyebrow">Connected · {shortAddress(connectedAddress)}</p>
+            <h2>Set your display name</h2>
+            <p>
+              This name shows on the public leaderboard next to your scores. Leave
+              it blank to appear as your wallet address. You can change it anytime
+              by reconnecting.
+            </p>
+
+            <label className="gate-name-field">
+              <span className="gate-name-label">Display name</span>
+              <input
+                className="gate-name-input"
+                type="text"
+                value={nameInput}
+                maxLength={20}
+                placeholder="e.g. CoilKing"
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveNameAndContinue(); }}
+                autoFocus
+              />
+              <span className="gate-name-count">{nameInput.trim().length}/20</span>
+            </label>
+
+            <div className="flex gap-sm" style={{ marginTop: "1.2rem", justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                className="pix-btn pix-btn--phosphor pix-btn--lg"
+                onClick={saveNameAndContinue}
+              >
+                Save & continue
+              </button>
+              <button
+                className="pix-btn pix-btn--ghost pix-btn--lg"
+                onClick={() => onConnected(connectedAddress)}
+              >
+                Skip
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page">

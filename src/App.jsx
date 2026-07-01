@@ -7,8 +7,10 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { Brand, WalletPill } from "./components/ui";
+import { Brand, NavLeaderboardButton, WalletPill } from "./components/ui";
 import { WalletProvider, useWallet } from "./lib/walletContext";
+import { ProfileProvider } from "./lib/profileContext";
+import { LeaderboardProvider } from "./lib/leaderboardContext";
 
 const ArcadePage = lazy(() => import("./pages/ArcadePage"));
 const HomePage = lazy(() => import("./pages/HomePage"));
@@ -19,6 +21,7 @@ const MatchPage = lazy(() => import("./pages/MatchPage"));
 const ResultsPage = lazy(() => import("./pages/ResultsPage"));
 const ConnectWalletPage = lazy(() => import("./pages/ConnectWalletPage"));
 const ShareResultPage = lazy(() => import("./pages/ShareResultPage"));
+const LeaderboardPage = lazy(() => import("./pages/LeaderboardPage"));
 
 function RouteFallback() {
   return (
@@ -40,19 +43,26 @@ function AppShell() {
     <div className="app-shell crt-bg">
       <header className="navbar">
         <Brand onClick={() => navigate("/")} />
-        <WalletPill
-          address={address}
-          onConnect={() =>
-            navigate("/connect", { state: { from: location.pathname } })
-          }
-          onDisconnect={disconnect}
-          onMySnakiox={() => navigate("/")}
-        />
+        <div className="navbar-actions">
+          <NavLeaderboardButton
+            onClick={() => navigate("/leaderboard")}
+            active={location.pathname === "/leaderboard"}
+          />
+          <WalletPill
+            address={address}
+            onConnect={() =>
+              navigate("/connect", { state: { from: location.pathname } })
+            }
+            onDisconnect={disconnect}
+            onMySnakiox={() => navigate("/")}
+          />
+        </div>
       </header>
 
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<ArcadePage />} />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/pvp" element={<HomePage />} />
           <Route path="/connect" element={<ConnectWalletPage />} />
           <Route path="/create-match" element={<CreateMatchPage />} />
@@ -79,7 +89,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <WalletProvider>
-        <AppShell />
+        <ProfileProvider>
+          <LeaderboardProvider>
+            <AppShell />
+          </LeaderboardProvider>
+        </ProfileProvider>
       </WalletProvider>
     </BrowserRouter>
   );

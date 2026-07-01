@@ -141,6 +141,7 @@ export default function SnakeSelect({
   initialBgId,
   onStart,
   onBack,
+  title = "Classic Coil · Setup",
 }) {
   const [snakeId, setSnakeId] = useState(initialSnakeId ?? snakes[0]?.tokenId);
   const [bgId, setBgId] = useState(initialBgId ?? BACKGROUNDS[0].id);
@@ -153,7 +154,7 @@ export default function SnakeSelect({
     <>
       <div className="flex-between" style={{ marginBottom: "1.2rem" }}>
         <button className="pix-btn pix-btn--ghost" onClick={onBack}>← Arcade</button>
-        <div className="tag">Classic Coil · Setup</div>
+        <div className="tag">{title}</div>
       </div>
       <header className="page-head">
         <p className="page-eyebrow">{address ? shortAddress(address) : "Your collection"}</p>
