@@ -72,10 +72,10 @@ export const GAME_MODES = [
 // `setting` reuses the option shape from GAME_MODES.
 
 export const DIFFICULTIES = [
-  { id: "easy", label: "Easy", tick: 200, mistakeRate: 0.25, strategy: "greedy" },
-  { id: "medium", label: "Medium", tick: 150, mistakeRate: 0.1, strategy: "safe" },
-  { id: "hard", label: "Hard", tick: 120, mistakeRate: 0.02, strategy: "bfs" },
-  { id: "master", label: "Master", tick: 95, mistakeRate: 0, strategy: "flood" },
+  { id: "easy", label: "Easy", tick: 200, mistakeRate: 0.07, strategy: "easy" },
+  { id: "medium", label: "Medium", tick: 150, mistakeRate: 0, strategy: "medium" },
+  { id: "hard", label: "Hard", tick: 110, mistakeRate: 0.008, strategy: "hard" },
+  { id: "master", label: "Master", tick: 85, mistakeRate: 0, strategy: "master" },
 ];
 
 export function getDifficulty(id) {
